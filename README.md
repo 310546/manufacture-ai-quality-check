@@ -1,37 +1,29 @@
-# manufacture-ai-quality-check
+# 制造业AI智能质检系统
+## 项目简介
+本项目是面向工业场景的**AI视觉质检应用**，专注于制造业产品外观缺陷自动检测，通过AI智能体交互+云服务部署，实现工程化落地。
 
-#### 介绍
-制造业AI视觉质检系统 | Flask+扣子Coze+Render云部署 | Java+AI工程化落地项目
+项目定位：**Java+AI 方向工程化实践项目**（核心展示AI能力落地、接口开发、云部署能力，可无缝迁移至Java SpringBoot生态）
 
-#### 软件架构
-软件架构说明
+## 技术栈
+- 后端：Python Flask
+- AI平台：扣子Coze（AI智能体）
+- 部署：Render 云服务器（7×24小时在线）
+- 场景：制造业工业视觉质检
 
+## 核心功能
+1. 支持图片上传/URL图片输入
+2. AI智能体对话式交互检测
+3. 产品合格/缺陷自动判断
+4. 标准化质检结果输出
+5. 公网永久访问，脱离本地环境
 
-#### 安装教程
+## 项目亮点（求职向）
+✅ AI工程化落地能力（接口封装 + 服务部署）
+✅ 对接大模型/视觉AI模型预留标准接口
+✅ 云原生部署，生产级可用
+✅ 技术思想可无缝迁移至 Java + SpringBoot 开发
+✅ 制造业真实业务场景，匹配工业AI岗位需求
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 使用说明
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+## 演示地址
+扣子智能体演示：https://www.coze.cn/s/Bt-xFNGWsQQ/
+云服务接口地址：https://xxx.onrender.com
