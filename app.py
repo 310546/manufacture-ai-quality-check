@@ -1,184 +1,142 @@
-# app.py
-import logging
-import os
-from datetime import datetime
-from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import os
 import requests
 from io import BytesIO
-from werkzeug.utils import secure_filename
-from werkzeug.exceptions import RequestEntityTooLarge
+import logging
 
-# ===================== 基础配置 =====================
-# 配置日志（生产环境可调整为文件日志）
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-logger = logging.getLogger(__name__)
-
-# 加载环境变量（本地用.env，Render用平台环境变量）
-load_dotenv()
-
-# 初始化Flask应用
+# -------------------------- 基础配置（适配 Render） --------------------------
 app = Flask(__name__)
 
-# ===================== 环境适配配置 =====================
-# Render自动分配端口，优先读取环境变量
-PORT = int(os.getenv('PORT', 5000))
-# 调试模式：生产环境（Render）必须关闭
-DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-# CORS配置：生产环境指定具体前端域名，本地允许所有
-CORS_ORIGINS = os.getenv('CORS_ORIGINS', '*')
+# 1. 跨域配置：允许扣子（Coze）跨域调用，生产级宽松配置
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# ===================== 上传安全配置 =====================
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 限制文件大小10MB
-app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.webp']  # 图片类型白名单
-# 绝对路径：适配Render的临时文件系统，避免相对路径问题
-app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
-# 确保上传目录存在（容错）
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# 2. 日志配置：方便在 Render 控制台排查问题
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# ===================== CORS配置 =====================
-CORS(
-    app,
-    resources={r"/api/*": {"origins": CORS_ORIGINS}},
-    supports_credentials=True,
-    methods=['POST', 'GET', 'OPTIONS'],
-    allow_headers=['Content-Type', 'Authorization']
-)
+# 3. 临时存储：Render 为临时文件系统，无需持久化，使用内存+临时目录
+UPLOAD_FOLDER = '/tmp/ai_quality_check'  # Render 推荐的临时目录
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# 4. 端口配置：适配 Render 的 PORT 环境变量（Render 会自动分配端口）
+PORT = int(os.environ.get('PORT', 5000))
 
-# ===================== AI质检核心函数（无缝替换入口） =====================
-def ai_quality_check(image_path):
+# -------------------------- 核心业务逻辑（适配扣子） --------------------------
+def download_image_from_url(image_url):
+    """封装图片URL下载逻辑，增强容错"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        resp = requests.get(
+            image_url,
+            headers=headers,
+            timeout=15,
+            verify=False  # 忽略证书问题（Render 部分环境可能触发）
+        )
+        resp.raise_for_status()  # 触发HTTP错误（4xx/5xx）
+        return BytesIO(resp.content)
+    except requests.exceptions.Timeout:
+        raise Exception(f"图片URL请求超时：{image_url}")
+    except requests.exceptions.HTTPError as e:
+        raise Exception(f"图片URL返回错误：{e.response.status_code} - {image_url}")
+    except Exception as e:
+        raise Exception(f"下载图片失败：{str(e)}")
+
+def ai_quality_check_core(image_path):
     """
-    AI质检核心逻辑 - 后续替换真实AI模型仅需修改此函数
-    :param image_path: 图片本地绝对路径
-    :return: dict - 质检结果（result/confidence/suggestion）
+    AI质检核心逻辑（占位）
+    后续替换为真实AI：如调用Coze视觉API/本地模型/第三方图像识别接口
     """
-    # ========== 替换示例 ==========
-    # 1. 本地AI模型：加载PyTorch/TensorFlow模型推理
-    # 2. 第三方API：调用阿里云/腾讯云图像识别接口
-    # 3. 目前保留模拟逻辑，和原代码兼容
-
-    logger.info(f"执行AI质检，图片路径：{image_path}")
+    # 模拟质检结果（保持和扣子对接的返回格式）
     return {
         "result": "正常产品",
         "confidence": 98.65,
         "suggestion": "合格，可流入下一道工序"
     }
 
-
-# ===================== 核心接口 =====================
+# -------------------------- 接口层（扣子专属适配） --------------------------
 @app.route('/api/quality-check', methods=['POST'])
 def quality_check():
-    image_path = None  # 初始化图片路径，用于finally清理
+    """
+    质检接口：同时兼容
+    1. 本地测试：表单上传文件（key=image）
+    2. 扣子调用：JSON/Form传图片URL（key=image）
+    """
     try:
-        # 1. 接收图片：优先表单文件，其次URL
+        file = None
+        image_source = None  # 记录图片来源，方便排查
+
+        # 1. 优先处理表单文件（本地测试）
         if 'image' in request.files:
-            # 处理表单上传的文件
-            uploaded_file = request.files['image']
-            if uploaded_file.filename == '':
-                raise ValueError("上传的文件名为空，请选择有效图片")
+            file = request.files['image']
+            image_source = "form_file"
+            if file.filename == '':
+                raise Exception("表单文件名为空")
 
-            # 安全文件名 + 时间戳（避免重复）
-            filename = secure_filename(uploaded_file.filename)
-            temp_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
-            # 校验文件类型
-            file_ext = os.path.splitext(temp_filename)[1].lower()
-            if file_ext not in app.config['UPLOAD_EXTENSIONS']:
-                raise ValueError(f"不支持的文件类型，仅支持：{','.join(app.config['UPLOAD_EXTENSIONS'])}")
-
-            # 构建绝对路径并保存
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
-            uploaded_file.save(image_path)
-            logger.info(f"表单上传图片已保存：{image_path}")
-
+        # 2. 兼容扣子：处理URL形式（JSON/Form传参）
         else:
-            # 处理URL形式的图片
-            data = request.get_json() or request.form.to_dict()
-            image_url = data.get('image')
+            # 优先读JSON（扣子常用JSON传参），其次读Form
+            data = request.get_json(silent=True) or {}  # silent=True避免JSON解析失败报错
+            image_url = data.get('image') or request.form.get('image')
+            
             if not image_url:
-                raise ValueError("未检测到图片文件或图片URL，请检查请求参数")
+                raise Exception("未收到图片URL（扣子传参请用key=image）")
+            
+            logger.info(f"扣子请求：下载图片URL -> {image_url}")
+            file = download_image_from_url(image_url)
+            file.filename = "coze_temp.jpg"
+            image_source = "coze_url"
 
-            # 下载图片（添加UA和超时，适配各类CDN）
-            logger.info(f"开始下载远程图片：{image_url}")
-            resp = requests.get(
-                image_url,
-                timeout=15,
-                headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                }
-            )
-            resp.raise_for_status()  # 抛出HTTP错误（4xx/5xx）
+        # 3. 保存临时文件（供后续AI调用，Render临时目录不持久化）
+        img_path = os.path.join(app.config['UPLOAD_FOLDER'], 'temp_quality.jpg')
+        if isinstance(file, BytesIO):
+            with open(img_path, 'wb') as f:
+                f.write(file.getvalue())
+        else:
+            file.save(img_path)
+        logger.info(f"图片保存成功：{img_path}（来源：{image_source}）")
 
-            # 校验响应是否为图片
-            if not resp.headers.get('Content-Type', '').startswith('image/'):
-                raise ValueError("URL返回的内容不是有效图片，请检查URL")
+        # 4. 执行AI质检（核心逻辑，后续替换为真实模型）
+        ai_result = ai_quality_check_core(img_path)
 
-            # 保存远程图片到本地
-            temp_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_url.jpg"
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
-            with open(image_path, 'wb') as f:
-                f.write(resp.content)
-            logger.info(f"远程图片已下载保存：{image_path}")
-
-        # 2. 执行AI质检（核心逻辑，替换时仅改ai_quality_check函数）
-        quality_result = ai_quality_check(image_path)
-
-        # 3. 返回成功响应
+        # 5. 返回标准化结果（扣子可直接解析）
         return jsonify({
             "code": 200,
-            "msg": "质检成功",
-            "data": quality_result
+            "msg": "success",
+            "data": ai_result
         })
 
-    # 细分异常处理，返回精准错误信息
-    except RequestEntityTooLarge:
-        logger.error("上传文件超过10MB限制")
-        return jsonify({"code": 413, "msg": "文件过大，最大支持10MB的图片文件"})
-    except requests.exceptions.RequestException as e:
-        logger.error(f"图片URL请求失败：{str(e)}")
-        return jsonify({"code": 400, "msg": f"图片URL请求失败：{str(e)}"})
-    except ValueError as e:
-        logger.error(f"业务参数错误：{str(e)}")
-        return jsonify({"code": 400, "msg": str(e)})
+    # 针对性异常捕获（方便扣子端排查问题）
     except Exception as e:
-        logger.error(f"服务器内部异常：{str(e)}", exc_info=True)
-        return jsonify({"code": 500, "msg": "服务器内部错误，请联系管理员"})
-    finally:
-        # 可选：清理临时文件（Render临时文件会自动清理，也可手动清理）
-        if image_path and os.path.exists(image_path):
-            try:
-                os.remove(image_path)
-                logger.info(f"临时文件已清理：{image_path}")
-            except Exception as e:
-                logger.warning(f"清理临时文件失败：{str(e)}")
+        error_msg = f"质检失败：{str(e)}"
+        logger.error(error_msg)
+        return jsonify({
+            "code": 400,
+            "msg": error_msg,
+            "data": None
+        })
 
-
-# ===================== 健康检查接口 =====================
+# -------------------------- 健康检查（Render 必需） --------------------------
 @app.route('/')
-def index():
+def health_check():
+    """Render 健康检查接口，部署时会检测该接口是否存活"""
     return jsonify({
         "code": 200,
-        "msg": "制造业AI质检服务（Render适配版）运行正常",
-        "docs": {
-            "接口地址": "/api/quality-check",
-            "请求方法": "POST",
-            "请求方式1": "表单上传：key=image，值为图片文件",
-            "请求方式2": "JSON/表单参数：key=image，值为图片URL"
+        "msg": "制造业AI质检服务（Render+扣子）运行正常",
+        "data": {
+            "server": "render",
+            "support_coze": True
         }
     })
 
-
-# ===================== 启动入口 =====================
+# -------------------------- 启动服务（适配 Render） --------------------------
 if __name__ == '__main__':
-    logger.info(f"启动服务 - 端口：{PORT} | 调试模式：{DEBUG}")
+    # Render 生产环境必须关闭 debug，且 host 为 0.0.0.0
     app.run(
-        host='0.0.0.0',  # 允许外部访问
+        host='0.0.0.0',
         port=PORT,
-        debug=DEBUG,
-        threaded=True  # 开启多线程，提升并发能力
+        debug=False  # 生产环境绝对关闭debug！
     )
