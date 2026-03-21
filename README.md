@@ -4,12 +4,15 @@
 
 项目定位：**Java+AI 方向工程化实践项目**（核心展示AI能力落地、接口开发、云部署能力，可无缝迁移至Java SpringBoot生态）
 ## 项目结构（PyCharm 直接打开，根目录无嵌套）
+
+```
 你的项目文件夹/
 ├── main.py        # 🔥 Flask核心代码（Railway专用，详细注释）
 ├── requirements.txt  # 项目依赖
 ├── Dockerfile     # Railway部署配置（绕过mise报错）
 ├── .env           # 扣子AI密钥（本地用，不上传GitHub）
 └── .gitignore     # 忽略不必要的文件
+```
 
 ## 技术栈
 - 后端：Python Flask
