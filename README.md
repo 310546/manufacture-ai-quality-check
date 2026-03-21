@@ -7,7 +7,7 @@
 
 ```
 你的项目文件夹/
-├── main.py        # 🔥 Flask核心代码（Railway专用，详细注释）
+├── app.py        # 🔥 Flask核心代码（Railway专用，详细注释）
 ├── requirements.txt  # 项目依赖
 ├── Dockerfile     # Railway部署配置（绕过mise报错）
 ├── .env           # 扣子AI密钥（本地用，不上传GitHub）
