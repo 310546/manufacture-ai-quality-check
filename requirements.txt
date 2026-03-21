@@ -1,5 +1,15 @@
+# Flask核心框架（PyCharm原生）
 flask~=3.0.3
 flask-cors==4.0.0
+
+# Railway部署用的进程管理工具
+gunicorn==21.2.0
+
+# AI图像处理依赖
+opencv-python==4.8.1.78
+numpy==1.24.3
+
+# 网络请求+环境变量
 requests~=2.32.4
 werkzeug~=3.0.6
 dotenv~=0.9.9
