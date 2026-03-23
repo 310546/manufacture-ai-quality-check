@@ -1,5 +1,6 @@
-# 只保留核心依赖，版本选最通用的
+# 强制固定兼容版本，彻底解决Werkzeug冲突
 flask==2.2.3
+werkzeug==2.2.3  # 关键：和Flask 2.2.3严格匹配
 gunicorn==20.1.0
 opencv-python-headless==4.8.0.76
 numpy==1.24.3
