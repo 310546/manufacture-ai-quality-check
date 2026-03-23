@@ -1,12 +1,10 @@
-# 基础镜像：用Python3.12-slim即可，不用改版本
-FROM python:3.12-slim
+# 基础镜像（稳定版）
+FROM python:3.12-slim-bookworm
 
-# 仅安装最基础的系统依赖（避免冗余）
+# 只安装最基础的系统工具，避免冗余
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
-        # 仅保留pip需要的基础工具
-        gcc \
-        python3-dev \
+        build-essential \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -16,9 +14,8 @@ WORKDIR /app
 # 复制依赖文件
 COPY requirements.txt .
 
-# 升级pip + 安装Python依赖（用清华源）
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+# 安装依赖（不再升级pip，避免卸载问题）
+RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 复制项目代码
 COPY . /app
