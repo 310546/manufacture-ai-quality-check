@@ -1,16 +1,10 @@
-# Flask核心框架（PyCharm原生）
-flask~=3.0.3
+# 核心：兼容Python3.12 + Railway容器环境的稳定版依赖
+flask==2.3.3
 flask-cors==4.0.0
-
-# Railway部署用的进程管理工具
 gunicorn==21.2.0
-
-# AI图像处理依赖
+numpy==1.26.4
+pillow==10.2.0
+# 容器专用OpenCV（无系统依赖，必装）
 opencv-python-headless==4.9.0.80
-numpy==1.24.3
-
-# 网络请求+环境变量
-requests~=2.32.4
-werkzeug~=3.0.6
-dotenv~=0.9.9
-python-dotenv~=1.0.1
+# 可选：如果你的项目用torch，加这行（根据需求删/加）
+# torch==2.2.1 --index-url https://download.pytorch.org/whl/cpu
