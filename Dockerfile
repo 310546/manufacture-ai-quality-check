@@ -19,4 +19,4 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # 启动命令（简化写法，适配Railway）
-CMD ["python", "-m", "gunicorn", "main:app", "--bind", "0.0.0.0:$PORT"]
+CMD gunicorn main:app --bind 0.0.0.0:$PORT
