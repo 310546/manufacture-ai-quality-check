@@ -1,28 +1,22 @@
-# 基础镜像：用Python3.12-slim-bookworm（稳定版，比slim多一点工具但不臃肿）
-FROM python:3.12-slim-bookworm
+# 用最兼容的Python3.10（避开3.12的小众兼容问题）
+FROM python:3.10-slim
 
-# 关键1：安装基础编译工具（解决numpy/opencv编译失败）
-# 关键2：更换为中国科技大学源（比阿里更稳定）
-# 关键3：--timeout=60 延长pip超时，避免下载中断
-RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update -y \
-    && apt-get install -y --no-install-recommends gcc python3-dev \
-    && apt-get clean \
+# 只装最核心工具，不换源（避免源配置错误）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
 WORKDIR /app
 
-# 复制依赖文件并安装（加超时+中科大pip源）
+# 复制依赖文件（先复制requirements.txt，利用Docker缓存）
 COPY requirements.txt .
-RUN pip install --upgrade pip==25.0.1 \
-    && pip install -r requirements.txt \
-        -i https://pypi.mirrors.ustc.edu.cn/simple/ \
-        --trusted-host pypi.mirrors.ustc.edu.cn \
-        --timeout=60
+
+# 安装依赖：只用默认pip源，不升级、不换源（避免超时/源冲突）
+RUN pip install -r requirements.txt
 
 # 复制项目代码
-COPY . /app
+COPY . .
 
-# Railway启动命令（固定写法，PORT由平台自动分配）
-CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:${PORT}"]
+# 启动命令（简化写法，适配Railway）
+CMD ["python", "-m", "gunicorn", "main:app", "--bind", "0.0.0.0:$PORT"]
