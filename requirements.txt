@@ -10,7 +10,6 @@ opencv-python-headless==4.9.0.80
 numpy==1.24.3
 
 # 网络请求+环境变量
->>>>>>> master
 requests~=2.32.4
 werkzeug~=3.0.6
 dotenv~=0.9.9
